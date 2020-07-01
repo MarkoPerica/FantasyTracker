@@ -4,39 +4,41 @@
 Downloader::Downloader(QObject *parent)
 	: QObject(parent)
 {
-	nam = new QNetworkAccessManager(this);
-	connect(nam, &QNetworkAccessManager::finished, this, &Downloader::onDownloadFinished);
 }
 
 Downloader::~Downloader()
 {
-
 }
 
-void Downloader::onDownloadFinished(QNetworkReply *reply) {
-	if (reply->error() != QNetworkReply::NoError) {
-		emit errorString(reply->errorString());
-	}
-	else {
-		saveToDisk(reply);
-	}
+
+void Downloader::download(const QUrl &url) {
+	QNetworkRequest request(url);
+	reply = naManager.get(request);
+#if QT_CONFIG(ssl)
+	connect(reply, &QNetworkReply::sslErrors, this, &Downloader::sslErrors);
+#endif
+	connect(reply, &QNetworkReply::finished, this, &Downloader::downloadFinished);
+	connect(reply, &QNetworkReply::readyRead, this, &Downloader::downloadReadyRead);
+}
+
+void Downloader::downloadFinished() {
+	if (reply->error()) { QMessageBox::critical(0, "Error", "Download failed\n"); }
+
 	reply->deleteLater();
-	emit available(true);
-	emit running(false);
 }
 
-void Downloader::saveToDisk(QNetworkReply *reply) {
-	QFile f(saveFile);
-	f.open(QIODevice::WriteOnly | QIODevice::Truncate);
-	f.write(reply->readAll());
-	f.close();
+QString Downloader::downloadReadyRead() {
+	QString ReplyText = reply->readAll();
+
+	return ReplyText;
+}
+ 
+
+void Downloader::sslErrors(const QList<QSslError> &sslErrors) {
+#if QT_CONFIG(ssl)
+	for (const QSslError &error : sslErrors) { QMessageBox::critical(0, "Error", "SSL error\n"); }
+#else
+	Q_UNUSED(sslErrors);
+#endif
 }
 
-void Downloader::download(const QUrl &url, const QString &file) {
-	saveFile = file;
-	QNetworkRequest req(url);
-	QNetworkReply *reply = nam->get(req);
-	connect(reply, &QNetworkReply::downloadProgress, this, &Downloader::downloadProgress);
-	emit available(false);
-	emit running(true);
-}
