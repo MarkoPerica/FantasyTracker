@@ -5,32 +5,32 @@
 #include <QtNetwork/qnetworkaccessmanager.h>
 #include <QtNetwork/qnetworkreply.h>
 #include <QtNetwork/qnetworkrequest.h>
+#include <qmessagebox.h>
 
 class Downloader : public QObject
 {
 	Q_OBJECT
 
 public:
-	Downloader(QObject *parent);
+	Downloader(QObject *parent=nullptr);
+
 	~Downloader();
 
+	void download(const QUrl &url);
+
 public slots:
-	void download(const QUrl &url, const QString &file);
+	void sslErrors(const QList<QSslError> &errors);
 
 signals:
-	void errorString(const QString &);
-	void available(bool);
-	void running(bool);
-	void downloadProgress(qint64, qint64);
 
 private:
-	QNetworkAccessManager *nam;
-	QString saveFile;
+	QNetworkAccessManager naManager;
+	QNetworkReply *reply = nullptr;
 
-	void saveToDisk(QNetworkReply *);
 
 private slots:
-	void onDownloadFinished(QNetworkReply *);
+	void downloadFinished();
+	QString downloadReadyRead();
 	
 };
 
